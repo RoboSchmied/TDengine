@@ -241,6 +241,8 @@ enum { // WARN: new msg should be appended to segment tail
   TD_DEF_MSG_TYPE(TDMT_VND_CREATE_INDEX, "vnode-create-index", NULL, NULL)
   TD_DEF_MSG_TYPE(TDMT_VND_DROP_INDEX, "vnode-drop-index", NULL, NULL)
   TD_DEF_MSG_TYPE(TDMT_VND_DISABLE_WRITE, "vnode-disable-write", NULL, NULL)
+  TD_DEF_MSG_TYPE(TDMT_VND_ARB_HEARTBEAT, "vnode-arb-hb", NULL, NULL)
+  TD_DEF_MSG_TYPE(TDMT_VND_ARB_CHECK_SYNC, "vnode-arb-check-sync", NULL, NULL)
   TD_DEF_MSG_TYPE(TDMT_VND_MAX_MSG, "vnd-max", NULL, NULL)
 
   TD_NEW_MSG_SEG(TDMT_SCH_MSG)  // 3<<8
@@ -307,6 +309,7 @@ enum { // WARN: new msg should be appended to segment tail
   TD_DEF_MSG_TYPE(TDMT_SYNC_PREP_SNAPSHOT_REPLY, "sync-prep-snapshot-reply", NULL, NULL)
   TD_DEF_MSG_TYPE(TDMT_SYNC_MAX_MSG, "sync-max", NULL, NULL)
   TD_DEF_MSG_TYPE(TDMT_SYNC_FORCE_FOLLOWER, "sync-force-become-follower", NULL, NULL)
+  TD_DEF_MSG_TYPE(TDMT_SYNC_SET_ASSIGNED_LEADER, "sync-set-assigned-leader", NULL, NULL)
 
   TD_NEW_MSG_SEG(TDMT_VND_STREAM_MSG) //7 << 8
   TD_DEF_MSG_TYPE(TDMT_VND_STREAM_SCAN_HISTORY, "vnode-stream-scan-history", NULL, NULL)
@@ -330,6 +333,9 @@ enum { // WARN: new msg should be appended to segment tail
   TD_DEF_MSG_TYPE(TDMT_VND_TMQ_VG_COMMITTEDINFO, "vnode-tmq-committedinfo", NULL, NULL)
   TD_DEF_MSG_TYPE(TDMT_VND_TMQ_MAX_MSG, "vnd-tmq-max", NULL, NULL)
 
+  TD_NEW_MSG_SEG(TDMT_MND_ARB_MSG)  //9 << 8
+  TD_DEF_MSG_TYPE(TDMT_MND_ARB_HEARTBEAT_TIMER, "mnd-arb-hb-tmr", NULL, NULL)
+  TD_DEF_MSG_TYPE(TDMT_MND_ARB_CHECK_SYNC_TIMER, "mnd-arb-check-sync-tmr", NULL, NULL)
 
 #if defined(TD_MSG_NUMBER_)
   TDMT_MAX

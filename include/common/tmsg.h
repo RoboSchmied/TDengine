@@ -144,6 +144,7 @@ typedef enum _mgmt_table {
   TSDB_MGMT_TABLE_STREAM_TASKS,
   TSDB_MGMT_TABLE_PRIVILEGES,
   TSDB_MGMT_TABLE_VIEWS,
+  TSDB_MGMT_TABLE_ARBGROUP,
   TSDB_MGMT_TABLE_MAX,
 } EShowType;
 
@@ -295,12 +296,42 @@ typedef enum ENodeType {
   QUERY_NODE_SYNCDB_STMT,
   QUERY_NODE_GRANT_STMT,
   QUERY_NODE_REVOKE_STMT,
-  QUERY_NODE_SHOW_DNODES_STMT,
+  // placeholder for [152, 180]
+  QUERY_NODE_SHOW_CREATE_VIEW_STMT = 181,
+  QUERY_NODE_SHOW_CREATE_DATABASE_STMT,
+  QUERY_NODE_SHOW_CREATE_TABLE_STMT,
+  QUERY_NODE_SHOW_CREATE_STABLE_STMT,
+  QUERY_NODE_SHOW_TABLE_DISTRIBUTED_STMT,
+  QUERY_NODE_SHOW_LOCAL_VARIABLES_STMT,
+  QUERY_NODE_SHOW_SCORES_STMT,
+  QUERY_NODE_SHOW_TABLE_TAGS_STMT,
+  QUERY_NODE_KILL_CONNECTION_STMT,
+  QUERY_NODE_KILL_QUERY_STMT,
+  QUERY_NODE_KILL_TRANSACTION_STMT,
+  QUERY_NODE_DELETE_STMT,
+  QUERY_NODE_INSERT_STMT,
+  QUERY_NODE_QUERY,
+  QUERY_NODE_SHOW_DB_ALIVE_STMT,
+  QUERY_NODE_SHOW_CLUSTER_ALIVE_STMT,
+  QUERY_NODE_BALANCE_VGROUP_LEADER_STMT,
+  QUERY_NODE_RESTORE_DNODE_STMT,
+  QUERY_NODE_RESTORE_QNODE_STMT,
+  QUERY_NODE_RESTORE_MNODE_STMT,
+  QUERY_NODE_RESTORE_VNODE_STMT,
+  QUERY_NODE_PAUSE_STREAM_STMT,
+  QUERY_NODE_RESUME_STREAM_STMT,
+  QUERY_NODE_CREATE_VIEW_STMT,
+  QUERY_NODE_DROP_VIEW_STMT,
+
+  // show statement nodes
+  // see 'sysTableShowAdapter', 'SYSTABLE_SHOW_TYPE_OFFSET'
+  QUERY_NODE_SHOW_DNODES_STMT = 400,
   QUERY_NODE_SHOW_MNODES_STMT,
   QUERY_NODE_SHOW_MODULES_STMT,
   QUERY_NODE_SHOW_QNODES_STMT,
   QUERY_NODE_SHOW_SNODES_STMT,
   QUERY_NODE_SHOW_BNODES_STMT,
+  QUERY_NODE_SHOW_ARBGROUPS_STMT,
   QUERY_NODE_SHOW_CLUSTER_STMT,
   QUERY_NODE_SHOW_DATABASES_STMT,
   QUERY_NODE_SHOW_FUNCTIONS_STMT,
@@ -324,31 +355,6 @@ typedef enum ENodeType {
   QUERY_NODE_SHOW_VNODES_STMT,
   QUERY_NODE_SHOW_USER_PRIVILEGES_STMT,
   QUERY_NODE_SHOW_VIEWS_STMT,
-  QUERY_NODE_SHOW_CREATE_VIEW_STMT,
-  QUERY_NODE_SHOW_CREATE_DATABASE_STMT,
-  QUERY_NODE_SHOW_CREATE_TABLE_STMT,
-  QUERY_NODE_SHOW_CREATE_STABLE_STMT,
-  QUERY_NODE_SHOW_TABLE_DISTRIBUTED_STMT,
-  QUERY_NODE_SHOW_LOCAL_VARIABLES_STMT,
-  QUERY_NODE_SHOW_SCORES_STMT,
-  QUERY_NODE_SHOW_TABLE_TAGS_STMT,
-  QUERY_NODE_KILL_CONNECTION_STMT,
-  QUERY_NODE_KILL_QUERY_STMT,
-  QUERY_NODE_KILL_TRANSACTION_STMT,
-  QUERY_NODE_DELETE_STMT,
-  QUERY_NODE_INSERT_STMT,
-  QUERY_NODE_QUERY,
-  QUERY_NODE_SHOW_DB_ALIVE_STMT,
-  QUERY_NODE_SHOW_CLUSTER_ALIVE_STMT,
-  QUERY_NODE_BALANCE_VGROUP_LEADER_STMT,
-  QUERY_NODE_RESTORE_DNODE_STMT,
-  QUERY_NODE_RESTORE_QNODE_STMT,
-  QUERY_NODE_RESTORE_MNODE_STMT,
-  QUERY_NODE_RESTORE_VNODE_STMT,
-  QUERY_NODE_PAUSE_STREAM_STMT,
-  QUERY_NODE_RESUME_STREAM_STMT,  
-  QUERY_NODE_CREATE_VIEW_STMT,
-  QUERY_NODE_DROP_VIEW_STMT,
 
   // logic plan node
   QUERY_NODE_LOGIC_PLAN_SCAN = 1000,
@@ -979,7 +985,7 @@ typedef struct {
   SHashObj* alterTbs;
   SHashObj* readViews;
   SHashObj* writeViews;
-  SHashObj* alterViews;  
+  SHashObj* alterViews;
   SHashObj* useDbs;
   int64_t whiteListVer;
 } SGetUserAuthRsp;
@@ -1135,6 +1141,7 @@ typedef struct {
   int32_t tsdbPageSize;
   int32_t sqlLen;
   char*   sql;
+  int8_t  withArbitrator;
 } SCreateDbReq;
 
 int32_t tSerializeSCreateDbReq(void* buf, int32_t bufLen, SCreateDbReq* pReq);
@@ -1285,6 +1292,7 @@ typedef struct {
   SArray* pRetensions;
   int8_t  schemaless;
   int16_t sstTrigger;
+  int8_t  withArbitrator;
 } SDbCfgRsp;
 
 typedef SDbCfgRsp SDbCfgInfo;
@@ -2050,6 +2058,78 @@ typedef struct {
 
 int32_t tSerializeSDCreateMnodeReq(void* buf, int32_t bufLen, SDCreateMnodeReq* pReq);
 int32_t tDeserializeSDCreateMnodeReq(void* buf, int32_t bufLen, SDCreateMnodeReq* pReq);
+
+typedef struct {
+  int32_t groupId;
+  int32_t hbSeq;
+} SVArbHbReqMember;
+
+typedef struct {
+  int32_t dnodeId;
+  char*   arbToken;
+  SArray* hbMembers;  // SVArbHbReqMember
+} SVArbHeartBeatReq;
+
+int32_t tSerializeSVArbHeartBeatReq(void* buf, int32_t bufLen, SVArbHeartBeatReq* pReq);
+int32_t tDeserializeSVArbHeartBeatReq(void* buf, int32_t bufLen, SVArbHeartBeatReq* pReq);
+void    tFreeSVArbHeartBeatReq(SVArbHeartBeatReq* pReq);
+
+typedef struct {
+  int32_t groupId;
+  char    memberToken[TSDB_ARB_TOKEN_SIZE];
+  int32_t hbSeq;
+} SVArbHbRspMember;
+
+typedef struct {
+  char    arbToken[TSDB_ARB_TOKEN_SIZE];
+  int32_t dnodeId;
+  SArray* hbMembers;  // SVArbHbRspMember
+} SVArbHeartBeatRsp;
+
+int32_t tSerializeSVArbHeartBeatRsp(void* buf, int32_t bufLen, SVArbHeartBeatRsp* pRsp);
+int32_t tDeserializeSVArbHeartBeatRsp(void* buf, int32_t bufLen, SVArbHeartBeatRsp* pRsp);
+void    tFreeSVArbHeartBeatRsp(SVArbHeartBeatRsp* pRsp);
+
+typedef struct {
+  char* arbToken;
+  char* member0Token;
+  char* member1Token;
+} SVArbCheckSyncReq;
+
+int32_t tSerializeSVArbCheckSyncReq(void* buf, int32_t bufLen, SVArbCheckSyncReq* pReq);
+int32_t tDeserializeSVArbCheckSyncReq(void* buf, int32_t bufLen, SVArbCheckSyncReq* pReq);
+void    tFreeSVArbCheckSyncReq(SVArbCheckSyncReq* pRsp);
+
+typedef struct {
+  char*   arbToken;
+  char*   member0Token;
+  char*   member1Token;
+  int32_t groupId;
+  int32_t errCode;
+} SVArbCheckSyncRsp;
+
+int32_t tSerializeSVArbCheckSyncRsp(void* buf, int32_t bufLen, SVArbCheckSyncRsp* pRsp);
+int32_t tDeserializeSVArbCheckSyncRsp(void* buf, int32_t bufLen, SVArbCheckSyncRsp* pRsp);
+void    tFreeSVArbCheckSyncRsp(SVArbCheckSyncRsp* pRsp);
+
+typedef struct {
+  char*    arbToken;
+  char*    memberToken;
+} SVArbSetAssignedLeaderReq;
+
+int32_t tSerializeSVArbSetAssignedLeaderReq(void* buf, int32_t bufLen, SVArbSetAssignedLeaderReq* pReq);
+int32_t tDeserializeSVArbSetAssignedLeaderReq(void* buf, int32_t bufLen, SVArbSetAssignedLeaderReq* pReq);
+void    tFreeSVArbSetAssignedLeaderReq(SVArbSetAssignedLeaderReq* pReq);
+
+typedef struct {
+  char*   arbToken;
+  char*   memberToken;
+  int32_t groupId;
+} SVArbSetAssignedLeaderRsp;
+
+int32_t tSerializeSVArbSetAssignedLeaderRsp(void* buf, int32_t bufLen, SVArbSetAssignedLeaderRsp* pRsp);
+int32_t tDeserializeSVArbSetAssignedLeaderRsp(void* buf, int32_t bufLen, SVArbSetAssignedLeaderRsp* pRsp);
+void    tFreeSVArbSetAssignedLeaderRsp(SVArbSetAssignedLeaderRsp* pRsp);
 
 typedef struct {
   char queryStrId[TSDB_QUERY_ID_LEN];

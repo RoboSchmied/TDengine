@@ -425,6 +425,7 @@ SSyncFSM *mndSyncMakeFsm(SMnode *pMnode) {
   pFsm->FpApplyQueueItems = mndApplyQueueItems;
   pFsm->FpReConfigCb = NULL;
   pFsm->FpBecomeLeaderCb = mndBecomeLeader;
+  pFsm->FpBecomeAssignedLeaderCb = NULL;
   pFsm->FpBecomeFollowerCb = mndBecomeFollower;
   pFsm->FpBecomeLearnerCb = mndBecomeLearner;
   pFsm->FpGetSnapshot = mndSyncGetSnapshot;

@@ -727,6 +727,8 @@ void mndTransSetDbName(STrans *pTrans, const char *dbname, const char *stbname) 
   }
 }
 
+void mndTransSetArbGroupId(STrans *pTrans, int32_t groupId) { pTrans->arbGroupId = groupId; }
+
 void mndTransSetSerial(STrans *pTrans) { pTrans->exec = TRN_EXEC_SERIAL; }
 
 void mndTransSetParallel(STrans *pTrans) { pTrans->exec = TRN_EXEC_PARALLEL; }
@@ -805,6 +807,12 @@ static bool mndCheckTransConflict(SMnode *pMnode, STrans *pNew) {
       }
       if (pTrans->conflict == TRN_CONFLICT_TOPIC_INSIDE) {
         if (strcasecmp(pNew->dbname, pTrans->dbname) == 0 && strcasecmp(pNew->stbname, pTrans->stbname) == 0) conflict = true;
+      }
+    }
+    if (pNew->conflict == TRN_CONFLICT_ARBGROUP) {
+      if (pTrans->conflict == TRN_CONFLICT_GLOBAL) conflict = true;
+      if (pTrans->conflict == TRN_CONFLICT_ARBGROUP) {
+        if (pNew->arbGroupId == pTrans->arbGroupId) conflict = true;
       }
     }
 
@@ -1113,7 +1121,7 @@ static int32_t mndTransWriteSingleLog(SMnode *pMnode, STrans *pTrans, STransActi
 }
 
 static int32_t mndTransSendSingleMsg(SMnode *pMnode, STrans *pTrans, STransAction *pAction) {
-  if (pAction->msgSent) return 0; 
+  if (pAction->msgSent) return 0;
   if (mndCannotExecuteTransAction(pMnode)) return -1;
 
   int64_t signature = pTrans->id;
@@ -1232,7 +1240,7 @@ static int32_t mndTransExecuteActions(SMnode *pMnode, STrans *pTrans, SArray *pA
 
     for (int32_t action = 0; action < numOfActions; ++action) {
       STransAction *pAction = taosArrayGet(pArray, action);
-      mDebug("trans:%d, %s:%d Sent:%d, Received:%d, errCode:0x%x, acceptableCode:0x%x, retryCode:0x%x", 
+      mDebug("trans:%d, %s:%d Sent:%d, Received:%d, errCode:0x%x, acceptableCode:0x%x, retryCode:0x%x",
               pTrans->id, mndTransStr(pAction->stage), pAction->id, pAction->msgSent, pAction->msgReceived,
               pAction->errCode, pAction->acceptableCode, pAction->retryCode);
       if (pAction->msgSent) {
@@ -1241,7 +1249,7 @@ static int32_t mndTransExecuteActions(SMnode *pMnode, STrans *pTrans, SArray *pA
             mndTransResetAction(pMnode, pTrans, pAction);
             mInfo("trans:%d, %s:%d reset", pTrans->id, mndTransStr(pAction->stage), pAction->id);
           }
-        } 
+        }
       }
     }
     return TSDB_CODE_ACTION_IN_PROGRESS;

@@ -88,7 +88,9 @@ void vmGetMonitorInfo(SVnodeMgmt *pMgmt, SMonVmInfo *pInfo) {
     numOfInsertSuccessReqs += pLoad->numOfInsertSuccessReqs;
     numOfBatchInsertReqs += pLoad->numOfBatchInsertReqs;
     numOfBatchInsertSuccessReqs += pLoad->numOfBatchInsertSuccessReqs;
-    if (pLoad->syncState == TAOS_SYNC_STATE_LEADER) masterNum++;
+    if (pLoad->syncState == TAOS_SYNC_STATE_LEADER || pLoad->syncState == TAOS_SYNC_STATE_ASSIGNED_LEADER) {
+      masterNum++;
+    }
     totalVnodes++;
   }
 
@@ -770,6 +772,67 @@ int32_t vmProcessDropVnodeReq(SVnodeMgmt *pMgmt, SRpcMsg *pMsg) {
   return 0;
 }
 
+int32_t vmProcessArbHeartBeatReq(SVnodeMgmt *pMgmt, SRpcMsg *pMsg) {
+  SVArbHeartBeatReq arbHbReq = {0};
+  if (tDeserializeSVArbHeartBeatReq(pMsg->pCont, pMsg->contLen, &arbHbReq) != 0) {
+    terrno = TSDB_CODE_INVALID_MSG;
+    goto _OVER;
+  }
+
+  if (arbHbReq.dnodeId != pMgmt->pData->dnodeId) {
+    terrno = TSDB_CODE_INVALID_MSG;
+    dError("dnodeId:%d not matched with local dnode", arbHbReq.dnodeId);
+    goto _OVER;
+  }
+
+  size_t size = taosArrayGetSize(arbHbReq.hbMembers);
+
+  SVArbHeartBeatRsp arbHbRsp = {0};
+  arbHbRsp.dnodeId = pMgmt->pData->dnodeId;
+  strncpy(arbHbRsp.arbToken, arbHbReq.arbToken, TSDB_ARB_TOKEN_SIZE);
+  arbHbRsp.hbMembers = taosArrayInit(size, sizeof(SVArbHbRspMember));
+
+  for (int32_t i; i < size; i++) {
+    SVArbHbReqMember *pReqMember = taosArrayGet(arbHbReq.hbMembers, i);
+    SVnodeObj        *pVnode = vmAcquireVnode(pMgmt, pReqMember->groupId);
+    if (pVnode == NULL) {
+      dError("dnodeId:%d vgId:%d not found", arbHbReq.dnodeId, pReqMember->groupId);
+      continue;
+    }
+
+    SVArbHbRspMember rspMember = {0};
+    rspMember.groupId = pReqMember->groupId;
+    rspMember.hbSeq = pReqMember->hbSeq;
+    vnodeGetArbToken(pVnode->pImpl, rspMember.memberToken);
+
+    taosArrayPush(arbHbRsp.hbMembers, &rspMember);
+
+    vmReleaseVnode(pMgmt, pVnode);
+  }
+
+  SRpcMsg rspMsg = {.info = pMsg->info};
+  int32_t rspLen = tSerializeSVArbHeartBeatRsp(NULL, 0, &arbHbRsp);
+  if (rspLen < 0) {
+    terrno = TSDB_CODE_OUT_OF_MEMORY;
+    goto _OVER;
+  }
+
+  void *pRsp = rpcMallocCont(rspLen);
+  if (pRsp == NULL) {
+    terrno = TSDB_CODE_OUT_OF_MEMORY;
+    goto _OVER;
+  }
+
+  tSerializeSVArbHeartBeatRsp(pRsp, rspLen, &arbHbRsp);
+  pMsg->info.rsp = pRsp;
+  pMsg->info.rspLen = rspLen;
+
+_OVER:
+  tFreeSVArbHeartBeatReq(&arbHbReq);
+  tFreeSVArbHeartBeatRsp(&arbHbRsp);
+  return terrno == TSDB_CODE_SUCCESS ? 0 : -1;
+}
+
 SArray *vmGetMsgHandles() {
   int32_t code = -1;
   SArray *pArray = taosArrayInit(32, sizeof(SMgmtHandle));
@@ -870,6 +933,10 @@ SArray *vmGetMsgHandles() {
   if (dmSetMgmtHandle(pArray, TDMT_SYNC_HEARTBEAT_REPLY, vmPutMsgToSyncRdQueue, 0) == NULL) goto _OVER;
   if (dmSetMgmtHandle(pArray, TDMT_SYNC_SNAPSHOT_RSP, vmPutMsgToSyncRdQueue, 0) == NULL) goto _OVER;
   if (dmSetMgmtHandle(pArray, TDMT_SYNC_PREP_SNAPSHOT_REPLY, vmPutMsgToSyncRdQueue, 0) == NULL) goto _OVER;
+
+  if (dmSetMgmtHandle(pArray, TDMT_VND_ARB_HEARTBEAT, vmPutMsgToMgmtQueue, 0) == NULL) goto _OVER;
+  if (dmSetMgmtHandle(pArray, TDMT_VND_ARB_CHECK_SYNC, vmPutMsgToWriteQueue, 0) == NULL) goto _OVER;
+  if (dmSetMgmtHandle(pArray, TDMT_SYNC_SET_ASSIGNED_LEADER, vmPutMsgToSyncQueue, 0) == NULL) goto _OVER;
 
   code = 0;
 

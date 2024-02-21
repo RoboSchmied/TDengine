@@ -64,6 +64,8 @@ const char *sdbTableName(ESdbType type) {
       return "idx";
     case SDB_VIEW:
       return "view";
+    case SDB_ARBGROUP:
+      return "arb_group";
     default:
       return "undefine";
   }

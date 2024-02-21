@@ -619,6 +619,15 @@ static void vnodeBecomeLeader(const SSyncFSM *pFsm) {
   }
 }
 
+static void vnodeBecomeAssignedLeader(const SSyncFSM* pFsm) {
+  SVnode *pVnode = pFsm->data;
+  vDebug("vgId:%d, become assigned leader", pVnode->config.vgId);
+  if (pVnode->pTq) {
+    // TODO(LSG): tq support assigned leader
+    tqUpdateNodeStage(pVnode->pTq, true);
+  }
+}
+
 static bool vnodeApplyQueueEmpty(const SSyncFSM *pFsm) {
   SVnode *pVnode = pFsm->data;
 
@@ -655,6 +664,7 @@ static SSyncFSM *vnodeSyncMakeFsm(SVnode *pVnode) {
   pFsm->FpApplyQueueEmptyCb = vnodeApplyQueueEmpty;
   pFsm->FpApplyQueueItems = vnodeApplyQueueItems;
   pFsm->FpBecomeLeaderCb = vnodeBecomeLeader;
+  pFsm->FpBecomeAssignedLeaderCb = vnodeBecomeAssignedLeader;
   pFsm->FpBecomeFollowerCb = vnodeBecomeFollower;
   pFsm->FpBecomeLearnerCb = vnodeBecomeLearner;
   pFsm->FpReConfigCb = NULL;
@@ -747,7 +757,7 @@ void vnodeSyncCheckTimeout(SVnode *pVnode) {
       vError("vgId:%d, failed to propose since timeout and post block, start:%d cur:%d delta:%d seq:%" PRId64,
              pVnode->config.vgId, pVnode->blockSec, curSec, delta, pVnode->blockSeq);
       if (syncSendTimeoutRsp(pVnode->sync, pVnode->blockSeq) != 0) {
-#if 0  
+#if 0
         SRpcMsg rpcMsg = {.code = TSDB_CODE_SYN_TIMEOUT, .info = pVnode->blockInfo};
         vError("send timeout response since its applyed, seq:%" PRId64 " handle:%p ahandle:%p", pVnode->blockSeq,
               rpcMsg.info.handle, rpcMsg.info.ahandle);

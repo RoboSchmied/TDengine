@@ -160,6 +160,11 @@ typedef struct SSyncNode {
   SSyncLogStore* pLogStore;
   SyncIndex      commitIndex;
 
+  // assigned leader log vars
+  SyncIndex assignedCommitIndex;
+
+  char arbToken[TSDB_ARB_TOKEN_SIZE];
+
   // timer ms init
   int32_t pingBaseLine;
   int32_t electBaseLine;
@@ -219,6 +224,7 @@ typedef struct SSyncNode {
 
   int32_t electNum;
   int32_t becomeLeaderNum;
+  int32_t becomeAssignedLeaderNum;
   int32_t configChangeNum;
   int32_t hbSlowNum;
   int32_t hbrSlowNum;
@@ -282,10 +288,12 @@ void syncNodeStepDown(SSyncNode* pSyncNode, SyncTerm newTerm);
 void syncNodeBecomeFollower(SSyncNode* pSyncNode, const char* debugStr);
 void syncNodeBecomeLearner(SSyncNode* pSyncNode, const char* debugStr);
 void syncNodeBecomeLeader(SSyncNode* pSyncNode, const char* debugStr);
+void syncNodeBecomeAssignedLeader(SSyncNode* pSyncNode);
 void syncNodeCandidate2Leader(SSyncNode* pSyncNode);
 void syncNodeFollower2Candidate(SSyncNode* pSyncNode);
 void syncNodeLeader2Follower(SSyncNode* pSyncNode);
 void syncNodeCandidate2Follower(SSyncNode* pSyncNode);
+void syncNodeAssignedLeader2Leader(SSyncNode* pSyncNode);
 
 // raft vote --------------
 void syncNodeVoteForTerm(SSyncNode* pSyncNode, SyncTerm term, SRaftId* pRaftId);

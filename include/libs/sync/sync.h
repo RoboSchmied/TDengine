@@ -79,6 +79,7 @@ typedef enum {
   TAOS_SYNC_STATE_LEADER = 102,
   TAOS_SYNC_STATE_ERROR = 103,
   TAOS_SYNC_STATE_LEARNER = 104,
+  TAOS_SYNC_STATE_ASSIGNED_LEADER = 105,
 } ESyncState;
 
 typedef enum {
@@ -183,6 +184,7 @@ typedef struct SSyncFSM {
   void (*FpBecomeLeaderCb)(const struct SSyncFSM* pFsm);
   void (*FpBecomeFollowerCb)(const struct SSyncFSM* pFsm);
   void (*FpBecomeLearnerCb)(const struct SSyncFSM* pFsm);
+  void (*FpBecomeAssignedLeaderCb)(const struct SSyncFSM* pFsm);
 
   int32_t (*FpGetSnapshot)(const struct SSyncFSM* pFsm, SSnapshot* pSnapshot, void* pReaderParam, void** ppReader);
   int32_t (*FpGetSnapshotInfo)(const struct SSyncFSM* pFsm, SSnapshot* pSnapshot);
@@ -282,8 +284,11 @@ bool      syncSnapshotSending(int64_t rid);
 bool      syncSnapshotRecving(int64_t rid);
 int32_t   syncSendTimeoutRsp(int64_t rid, int64_t seq);
 int32_t   syncForceBecomeFollower(SSyncNode* ths, const SRpcMsg* pRpcMsg);
+int32_t   syncBecomeAssignedLeader(SSyncNode* ths, SRpcMsg* pRpcMsg);
 
 SSyncState  syncGetState(int64_t rid);
+void        syncGetArbToken(int64_t rid, char* outToken);
+bool        syncGetAssignedLogSynced(int64_t rid);
 void        syncGetRetryEpSet(int64_t rid, SEpSet* pEpSet);
 const char* syncStr(ESyncState state);
 

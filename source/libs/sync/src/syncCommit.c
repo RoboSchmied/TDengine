@@ -83,8 +83,17 @@ int64_t syncNodeCheckCommitIndex(SSyncNode* ths, SyncIndex indexLikely) {
   if (indexLikely > ths->commitIndex && syncNodeAgreedUpon(ths, indexLikely)) {
     SyncIndex commitIndex = indexLikely;
     syncNodeUpdateCommitIndex(ths, commitIndex);
-    sTrace("vgId:%d, agreed upon. role:%d, term:%" PRId64 ", index:%" PRId64 "", ths->vgId, ths->state,
+    // TODO(LSG): adjust to sTrace
+    sInfo("vgId:%d, agreed upon. role:%d, term:%" PRId64 ", index:%" PRId64 "", ths->vgId, ths->state,
            raftStoreGetTerm(ths), commitIndex);
   }
+  return ths->commitIndex;
+}
+
+int64_t syncNodeUpdateAssignedCommitIndex(SSyncNode* ths, SyncIndex assignedCommitIndex) {
+  SyncIndex lastVer = ths->pLogStore->syncLogLastIndex(ths->pLogStore);
+  assignedCommitIndex = TMAX(assignedCommitIndex, ths->assignedCommitIndex);
+  ths->assignedCommitIndex = TMIN(assignedCommitIndex, lastVer);
+  ths->pLogStore->syncLogUpdateCommitIndex(ths->pLogStore, ths->assignedCommitIndex);
   return ths->commitIndex;
 }

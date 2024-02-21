@@ -129,7 +129,7 @@ int32_t vnodeAlterReplica(const char *path, SAlterVnodeReplicaReq *pReq, int32_t
   }
   pCfg->changeVersion = pReq->changeVersion;
 
-  vInfo("vgId:%d, save config while alter, replicas:%d totalReplicas:%d selfIndex:%d changeVersion:%d", 
+  vInfo("vgId:%d, save config while alter, replicas:%d totalReplicas:%d selfIndex:%d changeVersion:%d",
         pReq->vgId, pCfg->replicaNum, pCfg->totalReplicaNum, pCfg->myIndex, pCfg->changeVersion);
 
   info.config.syncCfg = *pCfg;
@@ -531,6 +531,8 @@ int32_t vnodeStart(SVnode *pVnode) {
 int32_t vnodeIsCatchUp(SVnode *pVnode) { return syncIsCatchUp(pVnode->sync); }
 
 ESyncRole vnodeGetRole(SVnode *pVnode) { return syncGetRole(pVnode->sync); }
+
+void vnodeGetArbToken(SVnode *pVnode, char *outToken) { syncGetArbToken(pVnode->sync, outToken); }
 
 void vnodeStop(SVnode *pVnode) {}
 

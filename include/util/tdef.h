@@ -260,7 +260,7 @@ typedef enum ELogicConditionType {
 #define TSDB_PASSWORD_LEN      32
 #define TSDB_USET_PASSWORD_LEN 129
 #define TSDB_VERSION_LEN       32
-#define TSDB_LABEL_LEN         12 
+#define TSDB_LABEL_LEN         12
 #define TSDB_JOB_STATUS_LEN    32
 
 #define TSDB_CLUSTER_ID_LEN       40
@@ -272,6 +272,8 @@ typedef enum ELogicConditionType {
 #define TSDB_SHOW_SCHEMA_JSON_LEN TSDB_MAX_COLUMNS * 256
 #define TSDB_SLOW_QUERY_SQL_LEN   512
 #define TSDB_SHOW_SUBQUERY_LEN    1000
+
+#define TSDB_ARB_TOKEN_SIZE       32
 
 #define TSDB_TRANS_STAGE_LEN 12
 #define TSDB_TRANS_TYPE_LEN  16
@@ -415,6 +417,10 @@ typedef enum ELogicConditionType {
 #define TSDB_DB_MIN_WAL_SEGMENT_SIZE     0
 #define TSDB_DEFAULT_DB_WAL_SEGMENT_SIZE 0
 
+#define TSDB_DEFAULT_DB_WITH_ARBITRATOR 0
+#define TSDB_MIN_DB_WITH_ARBITRATOR     0
+#define TSDB_MAX_DB_WITH_ARBITRATOR     1
+
 #define TSDB_MIN_ROLLUP_MAX_DELAY       1  // unit millisecond
 #define TSDB_MAX_ROLLUP_MAX_DELAY       (15 * 60 * 1000)
 #define TSDB_MIN_ROLLUP_WATERMARK       0  // unit millisecond
@@ -509,12 +515,12 @@ enum {
   SND_WORKER_TYPE__UNIQUE,
 };
 
-#define DEFAULT_HANDLE 0
-#define MNODE_HANDLE   1
-#define QNODE_HANDLE   -1
-#define SNODE_HANDLE   -2
-#define VNODE_HANDLE   -3
-#define CLIENT_HANDLE  -5
+#define DEFAULT_HANDLE    0
+#define MNODE_HANDLE      1
+#define QNODE_HANDLE      -1
+#define SNODE_HANDLE      -2
+#define VNODE_HANDLE      -3
+#define CLIENT_HANDLE     -5
 
 #define TSDB_CONFIG_OPTION_LEN 32
 #define TSDB_CONFIG_VALUE_LEN  64
@@ -534,8 +540,9 @@ enum {
 // sort page size by default
 #define DEFAULT_PAGESIZE 4096
 
-#define VNODE_TIMEOUT_SEC 60
-#define MNODE_TIMEOUT_SEC 60
+#define VNODE_TIMEOUT_SEC      60
+#define MNODE_TIMEOUT_SEC      60
+#define ARBITRATOR_TIMEOUT_SEC 60
 
 #ifdef __cplusplus
 }

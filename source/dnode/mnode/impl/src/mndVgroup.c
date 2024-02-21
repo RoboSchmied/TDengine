@@ -16,6 +16,7 @@
 #define _DEFAULT_SOURCE
 #include "mndVgroup.h"
 #include "audit.h"
+#include "mndArbGroup.h"
 #include "mndDb.h"
 #include "mndDnode.h"
 #include "mndMnode.h"
@@ -338,7 +339,7 @@ void *mndBuildCreateVnodeReq(SMnode *pMnode, SDnodeObj *pDnode, SDbObj *pDb, SVg
   mInfo(
       "vgId:%d, build create vnode req, replica:%d selfIndex:%d learnerReplica:%d learnerSelfIndex:%d strict:%d "
       "changeVersion:%d",
-      createReq.vgId, createReq.replica, createReq.selfIndex, createReq.learnerReplica, createReq.learnerReplica,
+      createReq.vgId, createReq.replica, createReq.selfIndex, createReq.learnerReplica, createReq.learnerSelfIndex,
       createReq.strict, createReq.changeVersion);
   for (int32_t i = 0; i < createReq.replica; ++i) {
     mInfo("vgId:%d, replica:%d ep:%s:%u", createReq.vgId, i, createReq.replicas[i].fqdn, createReq.replicas[i].port);
@@ -725,10 +726,6 @@ void mndSortVnodeGid(SVgObj *pVgroup) {
 }
 
 static int32_t mndGetAvailableDnode(SMnode *pMnode, SDbObj *pDb, SVgObj *pVgroup, SArray *pArray) {
-  SSdb   *pSdb = pMnode->pSdb;
-  int32_t allocedVnodes = 0;
-  void   *pIter = NULL;
-
   mDebug("start to sort %d dnodes", (int32_t)taosArrayGetSize(pArray));
   taosArraySort(pArray, (__compar_fn_t)mndCompareDnodeVnodes);
   for (int32_t i = 0; i < (int32_t)taosArrayGetSize(pArray); ++i) {
@@ -870,7 +867,7 @@ SEpSet mndGetVgroupEpset(SMnode *pMnode, const SVgObj *pVgroup) {
     SDnodeObj       *pDnode = mndAcquireDnode(pMnode, pVgid->dnodeId);
     if (pDnode == NULL) continue;
 
-    if (pVgid->syncState == TAOS_SYNC_STATE_LEADER) {
+    if (pVgid->syncState == TAOS_SYNC_STATE_LEADER || pVgid->syncState == TAOS_SYNC_STATE_ASSIGNED_LEADER) {
       epset.inUse = epset.numOfEps;
     }
 
@@ -878,6 +875,29 @@ SEpSet mndGetVgroupEpset(SMnode *pMnode, const SVgObj *pVgroup) {
     mndReleaseDnode(pMnode, pDnode);
   }
 
+  return epset;
+}
+
+SEpSet mndGetVgroupEpsetById(SMnode *pMnode, int32_t vgId) {
+  SEpSet epset = {0};
+
+  SVgObj * pVgroup = mndAcquireVgroup(pMnode, vgId);
+  if (!pVgroup) return epset;
+
+  for (int32_t v = 0; v < pVgroup->replica; ++v) {
+    const SVnodeGid *pVgid = &pVgroup->vnodeGid[v];
+    SDnodeObj       *pDnode = mndAcquireDnode(pMnode, pVgid->dnodeId);
+    if (pDnode == NULL) continue;
+
+    if (pVgid->syncState == TAOS_SYNC_STATE_LEADER || pVgid->syncState == TAOS_SYNC_STATE_ASSIGNED_LEADER) {
+      epset.inUse = epset.numOfEps;
+    }
+
+    addEpIntoEpSet(&epset, pDnode->fqdn, pDnode->port);
+    mndReleaseDnode(pMnode, pDnode);
+  }
+
+  mndReleaseVgroup(pMnode, pVgroup);
   return epset;
 }
 
@@ -944,7 +964,8 @@ static int32_t mndRetrieveVgroups(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *p
           strcpy(role, "dropping");
         } else if (online) {
           char *star = "";
-          if (pVgroup->vnodeGid[i].syncState == TAOS_SYNC_STATE_LEADER) {
+          if (pVgroup->vnodeGid[i].syncState == TAOS_SYNC_STATE_LEADER ||
+              pVgroup->vnodeGid[i].syncState == TAOS_SYNC_STATE_ASSIGNED_LEADER) {
             if (!pVgroup->vnodeGid[i].syncRestore && !pVgroup->vnodeGid[i].syncCanRead) {
               star = "**";
             } else if (!pVgroup->vnodeGid[i].syncRestore && pVgroup->vnodeGid[i].syncCanRead) {

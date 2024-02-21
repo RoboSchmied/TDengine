@@ -15,6 +15,7 @@
 
 #define _DEFAULT_SOURCE
 #include "mndAcct.h"
+#include "mndArbGroup.h"
 #include "mndCluster.h"
 #include "mndConsumer.h"
 #include "mndDb.h"
@@ -128,6 +129,22 @@ static void mndPullupTrimDb(SMnode *pMnode) {
   tmsgPutToQueue(&pMnode->msgCb, WRITE_QUEUE, &rpcMsg);
 }
 
+static void mndPullupArbHeartbeat(SMnode *pMnode) {
+  mTrace("pullup arb hb");
+  int32_t contLen = 0;
+  void   *pReq = mndBuildTimerMsg(&contLen);
+  SRpcMsg rpcMsg = {.msgType = TDMT_MND_ARB_HEARTBEAT_TIMER, .pCont = pReq, .contLen = contLen, .info.noResp = 1};
+  tmsgPutToQueue(&pMnode->msgCb, WRITE_QUEUE, &rpcMsg);
+}
+
+static void mndPullupArbCheckSync(SMnode *pMnode) {
+  mTrace("pullup arb sync");
+  int32_t contLen = 0;
+  void   *pReq = mndBuildTimerMsg(&contLen);
+  SRpcMsg rpcMsg = {.msgType = TDMT_MND_ARB_CHECK_SYNC_TIMER, .pCont = pReq, .contLen = contLen, .info.noResp = 1};
+  tmsgPutToQueue(&pMnode->msgCb, WRITE_QUEUE, &rpcMsg);
+}
+
 static void mndCalMqRebalance(SMnode *pMnode) {
   int32_t contLen = 0;
   void   *pReq = mndBuildTimerMsg(&contLen);
@@ -146,7 +163,7 @@ static void mndStreamCheckpointTick(SMnode *pMnode, int64_t sec) {
   }
 }
 
-static void mndStreamCheckNode(SMnode* pMnode) {
+static void mndStreamCheckNode(SMnode *pMnode) {
   int32_t contLen = 0;
   void   *pReq = mndBuildTimerMsg(&contLen);
   if (pReq != NULL) {
@@ -309,6 +326,14 @@ static void *mndThreadFp(void *param) {
     if (sec % (MNODE_TIMEOUT_SEC / 2) == 0) {
       mndSyncCheckTimeout(pMnode);
     }
+
+    if (sec % (ARBITRATOR_TIMEOUT_SEC / 2) == 0) {
+      mndPullupArbHeartbeat(pMnode);
+    }
+
+    if (sec % (ARBITRATOR_TIMEOUT_SEC / 2) == 0) {
+      mndPullupArbCheckSync(pMnode);
+    }
   }
 
   return NULL;
@@ -431,6 +456,7 @@ static int32_t mndInitSteps(SMnode *pMnode) {
   if (mndAllocStep(pMnode, "mnode-mnode", mndInitMnode, mndCleanupMnode) != 0) return -1;
   if (mndAllocStep(pMnode, "mnode-qnode", mndInitQnode, mndCleanupQnode) != 0) return -1;
   if (mndAllocStep(pMnode, "mnode-snode", mndInitSnode, mndCleanupSnode) != 0) return -1;
+  if (mndAllocStep(pMnode, "mnode-arbgroup", mndInitArbGroup, mndCleanupArbGroup) != 0) return -1;
   if (mndAllocStep(pMnode, "mnode-dnode", mndInitDnode, mndCleanupDnode) != 0) return -1;
   if (mndAllocStep(pMnode, "mnode-user", mndInitUser, mndCleanupUser) != 0) return -1;
   if (mndAllocStep(pMnode, "mnode-grant", mndInitGrant, mndCleanupGrant) != 0) return -1;
@@ -610,6 +636,8 @@ ESyncRole mndGetRole(SMnode *pMnode) {
   return syncGetRole(rid);
 }
 
+void mndGetArbToken(SMnode *pMnode, char *outToken) { syncGetArbToken(pMnode->syncMgmt.sync, outToken); }
+
 void mndStop(SMnode *pMnode) {
   mndSetStop(pMnode);
   mndSyncStop(pMnode);
@@ -680,7 +708,8 @@ static int32_t mndCheckMnodeState(SRpcMsg *pMsg) {
 _OVER:
   if (pMsg->msgType == TDMT_MND_TMQ_TIMER || pMsg->msgType == TDMT_MND_TELEM_TIMER ||
       pMsg->msgType == TDMT_MND_TRANS_TIMER || pMsg->msgType == TDMT_MND_TTL_TIMER ||
-      pMsg->msgType == TDMT_MND_TRIM_DB_TIMER || pMsg->msgType == TDMT_MND_UPTIME_TIMER) {
+      pMsg->msgType == TDMT_MND_TRIM_DB_TIMER || pMsg->msgType == TDMT_MND_UPTIME_TIMER ||
+      pMsg->msgType == TDMT_MND_ARB_HEARTBEAT_TIMER || pMsg->msgType == TDMT_MND_ARB_CHECK_SYNC_TIMER) {
     mTrace("timer not process since mnode restored:%d stopped:%d, sync restored:%d role:%s ", pMnode->restored,
            pMnode->stopped, state.restored, syncStr(state.state));
     return -1;
@@ -859,7 +888,7 @@ int32_t mndGetMonitorInfo(SMnode *pMnode, SMonClusterInfo *pClusterInfo, SMonVgr
       SMonVnodeDesc *pVnDesc = &desc.vnodes[i];
       pVnDesc->dnode_id = pVgid->dnodeId;
       tstrncpy(pVnDesc->vnode_role, syncStr(pVgid->syncState), sizeof(pVnDesc->vnode_role));
-      if (pVgid->syncState == TAOS_SYNC_STATE_LEADER) {
+      if (pVgid->syncState == TAOS_SYNC_STATE_LEADER || pVgid->syncState == TAOS_SYNC_STATE_ASSIGNED_LEADER) {
         tstrncpy(desc.status, "ready", sizeof(desc.status));
         pClusterInfo->vgroups_alive++;
       }
