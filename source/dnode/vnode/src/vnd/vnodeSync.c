@@ -623,7 +623,6 @@ static void vnodeBecomeAssignedLeader(const SSyncFSM* pFsm) {
   SVnode *pVnode = pFsm->data;
   vDebug("vgId:%d, become assigned leader", pVnode->config.vgId);
   if (pVnode->pTq) {
-    // TODO(LSG): tq support assigned leader
     tqUpdateNodeStage(pVnode->pTq, true);
   }
 }

@@ -29,7 +29,6 @@ static void dmGetMonitorDnodeInfo(SDnode *pDnode, SMonDnodeInfo *pInfo) {
   pInfo->has_mnode = pDnode->wrappers[MNODE].required;
   pInfo->has_qnode = pDnode->wrappers[QNODE].required;
   pInfo->has_snode = pDnode->wrappers[SNODE].required;
-  // TODO(LSG): has_arbitrator
   tstrncpy(pInfo->logdir.name, tsLogDir, sizeof(pInfo->logdir.name));
   pInfo->logdir.size = tsLogSpace.size;
   tstrncpy(pInfo->tempdir.name, tsTempDir, sizeof(pInfo->tempdir.name));
