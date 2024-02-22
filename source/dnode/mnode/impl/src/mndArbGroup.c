@@ -273,7 +273,7 @@ static void mndSendArbHeartBeatReq(SDnodeObj *pDnode, char *arbToken, SArray *hb
   if (code != 0) {
     mError("dnodeId:%d, failed to send arb-hb request to dnode since 0x%x", pDnode->id, code);
   } else {
-    mInfo("dnodeId:%d, send arb-hb request to dnode", pDnode->id);
+    mTrace("dnodeId:%d, send arb-hb request to dnode", pDnode->id);
   }
 }
 
