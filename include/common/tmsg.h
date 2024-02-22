@@ -1170,6 +1170,7 @@ typedef struct {
   int32_t walRetentionSize;
   int32_t sqlLen;
   char*   sql;
+  int8_t  withArbitrator;
 } SAlterDbReq;
 
 int32_t tSerializeSAlterDbReq(void* buf, int32_t bufLen, SAlterDbReq* pReq);

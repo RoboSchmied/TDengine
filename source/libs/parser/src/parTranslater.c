@@ -5080,7 +5080,7 @@ static int32_t checkOptionsDependency(STranslateContext* pCxt, const char* pDbNa
                                    "Invalid duration value, should be keep2 >= keep1 >= keep0 >= 3 * duration");
   }
 
-  if ((pOptions->replica == 2) ^ (pOptions->withArbitrator == true)) {
+  if ((pOptions->replica == 2) ^ (pOptions->withArbitrator == TSDB_MAX_DB_WITH_ARBITRATOR)) {
     return generateSyntaxErrMsgExt(&pCxt->msgBuf, TSDB_CODE_PAR_INVALID_DB_OPTION,
                                    "Invalid database option, with_arbitrator should be used with replica 2");
   }
@@ -5387,6 +5387,7 @@ static void buildAlterDbReq(STranslateContext* pCxt, SAlterDatabaseStmt* pStmt, 
   pReq->minRows = pStmt->pOptions->minRowsPerBlock;
   pReq->walRetentionPeriod = pStmt->pOptions->walRetentionPeriod;
   pReq->walRetentionSize = pStmt->pOptions->walRetentionSize;
+  pReq->withArbitrator = pStmt->pOptions->withArbitrator;
   return;
 }
 
