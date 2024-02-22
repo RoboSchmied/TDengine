@@ -111,7 +111,6 @@ int32_t udfDebugFlag = 131;
 int32_t smaDebugFlag = 131;
 int32_t idxDebugFlag = 131;
 int32_t sndDebugFlag = 131;
-int32_t arbDebugFlag = 131;
 
 int64_t dbgEmptyW = 0;
 int64_t dbgWN = 0;
